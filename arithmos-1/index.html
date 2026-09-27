@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#e9e0cf">
+<title>Math Game 1</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='12' fill='%23c79e49'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600..700&family=Nunito:wght@600;700;800;900&display=swap">
+<style>
+:root{
+  --bg:#e9e0cf; --surface:#f6efe1; --surface-2:#fcf8ef;
+  --ink:#382f26; --ink-2:#6c5f4e; --muted:#998a6f; --line:#d9cbb1;
+  --clay:#c1765a; --clay-tint:#eed4c8; --sage:#869a64; --sage-tint:#d8e0c3; --ochre:#c79e49;
+  --units:#6b8544; --tens:#4e6f99;
+  --r:18px;
+  --shadow:0 1px 0 rgba(255,255,255,.5), 0 10px 24px -16px rgba(56,47,38,.55);
+  --hard:3px 3px 0 rgba(56,47,38,.18);
+  --hard-active:1px 1px 0 rgba(56,47,38,.18);
+  --dot:rgba(56,47,38,.05);
+  --ring:0 0 0 4px rgba(199,158,73,.22);
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html{height:100%}
+body{
+  margin:0; min-height:100%;
+  font-family:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color:var(--ink); background:var(--bg);
+  background-image:radial-gradient(var(--dot) 1.1px, transparent 1.2px);
+  background-size:18px 18px; -webkit-font-smoothing:antialiased;
+  font-size:15.5px; line-height:1.45;
+  padding:env(safe-area-inset-top,0px) 16px env(safe-area-inset-bottom,0px);
+  display:flex; flex-direction:column;
+  -webkit-tap-highlight-color:transparent;
+}
+button{font:inherit; color:inherit; background:none; border:none; cursor:pointer; padding:0}
+.sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+
+.btn{
+  font-weight:800; border-radius:14px; padding:12px 18px; letter-spacing:.2px;
+  color:var(--surface-2); background:var(--ink); box-shadow:var(--hard);
+  transition:transform .08s, box-shadow .08s;
+}
+.btn:active{transform:translate(2px,2px); box-shadow:var(--hard-active)}
+.btn--ghost{background:var(--surface-2); color:var(--ink); border:1.5px solid var(--line)}
+.btn:focus-visible, .icon-btn:focus-visible, .link:focus-visible{outline:2px solid var(--ochre); outline-offset:3px}
+.icon-btn{
+  height:38px; min-width:38px; border-radius:12px; border:1.5px solid var(--line);
+  background:var(--surface-2); color:var(--muted); display:inline-grid; place-items:center;
+  box-shadow:var(--hard); transition:transform .08s, box-shadow .08s, color .15s, border-color .15s;
+  font-weight:800; font-size:.85rem;
+}
+.icon-btn:active{transform:translate(2px,2px); box-shadow:var(--hard-active)}
+.icon-btn svg{width:16px; height:16px}
+.icon-btn.armed{padding:0 12px; color:var(--clay); border-color:var(--clay)}
+.link{font-weight:800; color:var(--muted); text-decoration:underline; text-underline-offset:3px; min-height:40px; padding:0 8px}
+
+.screen{flex:1; width:100%; max-width:25rem; margin:0 auto; display:flex; flex-direction:column}
+
+#menu{padding:7vh 0 40px}
+h1{
+  font-family:"Fraunces",Baskerville,Georgia,serif; font-weight:650; font-size:2.5rem;
+  letter-spacing:-1px; line-height:1; text-align:center; margin:0 0 28px;
+}
+.levels{border:0; margin:0; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.lvl{
+  position:relative; display:grid; place-items:center; padding:22px 8px; cursor:pointer;
+  font-weight:800; font-size:1.3rem; line-height:1.2;
+  background:var(--surface-2); border:1.5px solid var(--line); border-radius:14px; box-shadow:var(--hard);
+  transition:transform .08s, box-shadow .08s, background .15s, border-color .15s;
+}
+.lvl:active{transform:translate(2px,2px); box-shadow:var(--hard-active)}
+.lvl input{position:absolute; opacity:0; pointer-events:none}
+.lvl.on{background:var(--sage-tint); border-color:var(--sage)}
+.lvl.kbd{outline:2px solid var(--ochre); outline-offset:3px}
+.start{width:100%; margin-top:18px; padding:16px; font-size:1.15rem; border-radius:16px}
+
+.board{margin-top:38px}
+.board h2{font-family:"Fraunces",Baskerville,Georgia,serif; font-weight:650; font-size:1.15rem; margin:0 4px 6px}
+.board ol{list-style:none; margin:0; padding:0}
+.board li{
+  display:grid; grid-template-columns:1.2rem 1fr auto 4.6rem; align-items:baseline; gap:10px;
+  padding:9px 8px; border-radius:10px;
+}
+.board li + li{border-top:1.5px solid var(--line); border-radius:0}
+.board li.new{background:var(--sage-tint); border-radius:10px; border-top-color:transparent}
+.board li.new + li{border-top-color:transparent}
+.rk{color:var(--muted); font-weight:800; font-size:.85rem}
+.nm{font-weight:700; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.tm{font-weight:800; font-variant-numeric:tabular-nums}
+.dt{color:var(--muted); font-weight:700; font-size:.83rem; text-align:right; white-space:nowrap}
+
+#play{padding-bottom:5vh}
+.bar{display:grid; grid-template-columns:1fr auto 1fr; align-items:center; padding:14px 0}
+.bar .icon-btn{justify-self:start}
+.beads{display:flex; gap:3px; position:relative}
+.beads::before{content:""; position:absolute; left:4px; right:4px; top:50%; height:1.5px; margin-top:-.75px; background:var(--line)}
+.bead{
+  position:relative; width:11px; height:11px; border-radius:50%;
+  background:var(--surface-2); border:1.5px solid var(--line); transition:background .3s, border-color .3s;
+}
+.bead.now{border-color:var(--ochre)}
+.bead.done{background:var(--ochre); border-color:var(--ochre)}
+.clock{justify-self:end; color:var(--muted); font-weight:700; font-size:.82rem; font-variant-numeric:tabular-nums; opacity:.85}
+
+.stage{flex:1; display:flex; align-items:center; justify-content:center; padding:2vh 0}
+.mat{
+  width:min(100%,19rem); display:flex; flex-direction:column; align-items:center;
+  background:var(--surface); border:1.5px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow);
+  padding:30px 24px 22px;
+}
+
+.sum{
+  --cw:.66em; --ow:1.05em;
+  font-size:clamp(3.4rem,17vw,5.25rem); font-weight:800; line-height:1.1;
+  display:grid; grid-template-columns:var(--ow) var(--cw) var(--cw);
+  font-variant-numeric:tabular-nums; user-select:none; -webkit-user-select:none;
+}
+.sum .d{text-align:center}
+.sum .t{color:var(--tens)}
+.sum .o{color:var(--units)}
+.sum .op{grid-row:2; grid-column:1; color:var(--ink-2); font-weight:700; text-align:left}
+.rule{grid-column:1/-1; height:5px; border-radius:5px; background:var(--ink-2); margin:.06em -.16em .16em 0; opacity:.85}
+.nums{display:contents}
+.nums.enter .d{animation:enter .26s ease-out}
+@keyframes enter{from{opacity:0; transform:translateY(.12em)}}
+
+.answer{
+  grid-column:1/-1; position:relative; display:grid; grid-template-columns:var(--ow) var(--cw) var(--cw);
+  height:1.22em; align-items:center;
+}
+.answer::before{
+  content:""; position:absolute; top:0; bottom:0; left:calc(var(--ow) - .16em); right:-.16em;
+  border-radius:.2em; background:var(--surface-2); border:2px solid var(--line);
+  transition:border-color .15s, box-shadow .15s, background .2s;
+}
+.answer.focus::before{border-color:var(--ochre); box-shadow:var(--ring)}
+.answer.miss::before{border-color:var(--clay)}
+.answer.focus.miss::before{box-shadow:0 0 0 4px rgba(193,118,90,.18)}
+.answer.right::before{border-color:var(--sage); background:var(--sage-tint); box-shadow:none}
+.answer.wrong{animation:shake .42s cubic-bezier(.36,.07,.19,.97)}
+@keyframes shake{
+  10%,90%{transform:translateX(-2px)} 20%,80%{transform:translateX(4px)}
+  30%,50%,70%{transform:translateX(-7px)} 40%,60%{transform:translateX(7px)}
+}
+.answer .c{position:relative; grid-row:1; text-align:center; line-height:1}
+.answer .c.t{grid-column:2}
+.answer .c.o{grid-column:3}
+.caret{
+  position:relative; grid-row:1; grid-column:3; justify-self:center;
+  width:3px; height:.62em; border-radius:2px; background:var(--ochre);
+  animation:blink 1.1s steps(1) infinite; display:none;
+}
+.answer.focus.empty .caret{display:block}
+@keyframes blink{50%{opacity:0}}
+#answer{
+  position:absolute; top:0; bottom:0; left:calc(var(--ow) - .16em); right:-.16em; z-index:2;
+  width:auto; margin:0; padding:0; border:0; outline:0; background:transparent;
+  color:transparent; -webkit-text-fill-color:transparent; caret-color:transparent;
+  font-size:18px; cursor:text; border-radius:.2em;
+}
+.note{min-height:1.5em; margin:14px 0 12px; font-weight:800; text-align:center; color:var(--clay)}
+.note.yes{color:var(--units)}
+.check{width:100%; font-size:1.1rem; padding:14px}
+
+#done .stage{padding-bottom:8vh}
+#done .mat{padding:28px 24px 22px; text-align:center}
+#done h2{font-family:"Fraunces",Baskerville,Georgia,serif; font-weight:650; font-size:1.5rem; line-height:1.2; margin:0}
+.final{font-family:"Fraunces",Baskerville,Georgia,serif; font-weight:650; font-size:3.6rem; line-height:1.1; margin:6px 0 18px; font-variant-numeric:tabular-nums}
+.save{display:flex; flex-direction:column; gap:10px; width:100%}
+.save label{font-weight:800; color:var(--units)}
+.save input{
+  font:inherit; font-weight:700; font-size:1.1rem; text-align:center; width:100%;
+  background:var(--surface-2); border:1.5px solid var(--line); border-radius:12px; padding:12px 14px; color:var(--ink);
+}
+.save input:focus{outline:none; border-color:var(--ochre); box-shadow:var(--ring)}
+.save input::placeholder{color:var(--muted)}
+.row{display:flex; gap:10px; width:100%}
+.row .btn{flex:1}
+
+@media (max-height:560px){
+  #menu{padding-top:24px}
+  .stage{align-items:flex-start}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none !important; transition:none !important}
+}
+</style>
+</head>
+<body>
+
+<main id="menu" class="screen">
+  <h1>Math Game 1</h1>
+
+  <fieldset class="levels">
+    <legend class="sr">Choose a level</legend>
+    <label class="lvl"><input type="radio" name="level" value="A">Level A</label>
+    <label class="lvl"><input type="radio" name="level" value="B">Level B</label>
+    <label class="lvl"><input type="radio" name="level" value="C">Level C</label>
+    <label class="lvl"><input type="radio" name="level" value="D">Level D</label>
+  </fieldset>
+
+  <button class="btn start" id="startBtn">Start</button>
+
+  <section class="board" aria-labelledby="boardTitle">
+    <h2 id="boardTitle">High scores</h2>
+    <ol id="board"></ol>
+  </section>
+</main>
+
+<main id="play" class="screen" hidden>
+  <div class="bar">
+    <button class="icon-btn" id="quitBtn" aria-label="Back to menu">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg>
+    </button>
+    <div class="beads" id="beads" role="img" aria-label="Problem 1 of 10"></div>
+    <span class="clock" id="clock" aria-hidden="true">0:00</span>
+  </div>
+
+  <div class="stage">
+    <form class="mat" id="work" autocomplete="off" novalidate>
+      <div class="sum" aria-live="polite">
+        <span class="sr" id="sumText"></span>
+        <div class="nums" id="nums" aria-hidden="true">
+          <span class="d op" id="op">+</span>
+          <span class="d t" id="aT" style="grid-row:1;grid-column:2"></span>
+          <span class="d o" id="aO" style="grid-row:1;grid-column:3"></span>
+          <span class="d t" id="bT" style="grid-row:2;grid-column:2"></span>
+          <span class="d o" id="bO" style="grid-row:2;grid-column:3"></span>
+        </div>
+        <div class="rule" aria-hidden="true"></div>
+        <div class="answer empty" id="answerBox">
+          <span class="c t" id="ansT" aria-hidden="true"></span>
+          <span class="c o" id="ansO" aria-hidden="true"></span>
+          <span class="caret" aria-hidden="true"></span>
+          <input id="answer" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
+                 autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-label="Your answer">
+        </div>
+      </div>
+      <p class="note" id="note" aria-live="assertive"></p>
+      <button class="btn check" id="checkBtn" type="submit">Check</button>
+    </form>
+  </div>
+</main>
+
+<main id="done" class="screen" hidden>
+  <div class="stage">
+    <div class="mat">
+      <h2>All done!</h2>
+      <p class="final" id="finalTime">0:00</p>
+
+      <form class="save" id="saveForm" autocomplete="off" hidden>
+        <label for="nameInput">New high score!</label>
+        <input id="nameInput" maxlength="16" placeholder="Your name" autocapitalize="words" enterkeyhint="done">
+        <button class="btn" type="submit">Save</button>
+        <button class="link" type="button" id="skipBtn">Skip</button>
+      </form>
+
+      <div class="row" id="doneActions" hidden>
+        <button class="btn btn--ghost" id="menuBtn">Menu</button>
+        <button class="btn" id="againBtn">Play again</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  // Supabase sync: paste your project URL and publishable (or legacy anon) key. Leave blank to keep scores on this device only.
+  const SUPABASE_URL = "";
+  const SUPABASE_KEY = "";
+  const GAME_ID = "math-game-1";
+
+  const LEVELS = ["A", "B", "C", "D"];
+  const PER_ROUND = 10, TOP_N = 5;
+
+  const BANK = [];
+  for (let a = 1; a <= 9; a++)
+    for (let b = 1; b <= 9; b++)
+      if (a + b >= 10) BANK.push({ level: "A", a, op: "+", b, answer: a + b });
+  for (let a = 10; a <= 99; a++)
+    for (let b = 10; b <= 99; b++) {
+      const ao = a % 10, bo = b % 10;
+      if (ao + bo >= 10 && a + b <= 99) BANK.push({ level: "B", a, op: "+", b, answer: a + b });
+      if (a > b && ao >= bo)            BANK.push({ level: "C", a, op: "-", b, answer: a - b });
+      if (a > b && ao <  bo)            BANK.push({ level: "D", a, op: "-", b, answer: a - b });
+    }
+  const POOLS = Object.fromEntries(LEVELS.map(l => [l, BANK.filter(p => p.level === l)]));
+
+  const store = {
+    get(k, fallback) {
+      try { const v = localStorage.getItem(k); return v == null ? fallback : JSON.parse(v); }
+      catch { return fallback; }
+    },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+  };
+
+  let scores = store.get("mg1.scores", []);
+  if (!Array.isArray(scores)) scores = [];
+  scores = scores.filter(s => s && s.id && LEVELS.includes(s.level) && s.ms > 0);
+  let level = LEVELS.includes(store.get("mg1.level")) ? store.get("mg1.level") : "A";
+  let highlightId = null;
+
+  const $ = id => document.getElementById(id);
+  const byTime = (x, y) => x.ms - y.ms || x.at - y.at;
+  const fmtTime = ms => {
+    const s = Math.floor(ms / 1000);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  };
+  const fmtDate = ts => {
+    const d = new Date(ts), o = { month: "short", day: "numeric" };
+    if (d.getFullYear() !== new Date().getFullYear()) o.year = "numeric";
+    return d.toLocaleDateString(undefined, o);
+  };
+  const uuid = () => {
+    if (crypto.randomUUID) return crypto.randomUUID();
+    const b = crypto.getRandomValues(new Uint8Array(16));
+    b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;
+    const h = [...b].map(x => x.toString(16).padStart(2, "0")).join("");
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+  };
+  const listFor = lv => scores.filter(s => s.level === lv).sort(byTime).slice(0, TOP_N);
+
+  function saveScores() {
+    const keep = [];
+    LEVELS.forEach(lv => {
+      const all = scores.filter(s => s.level === lv).sort(byTime);
+      all.forEach((s, i) => { if (i < TOP_N || !s.synced) keep.push(s); });
+    });
+    scores = keep;
+    store.set("mg1.scores", scores);
+  }
+
+  const remote = {
+    on: !!(SUPABASE_URL && SUPABASE_KEY),
+    async req(path, opts = {}) {
+      const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json", ...opts.headers };
+      if (SUPABASE_KEY.startsWith("eyJ")) headers.Authorization = `Bearer ${SUPABASE_KEY}`;
+      const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 8000);
+      try {
+        const res = await fetch(`${SUPABASE_URL.replace(/\/+$/, "")}/rest/v1/${path}`, { ...opts, headers, signal: ctrl.signal });
+        if (!res.ok) { const e = new Error(`Supabase ${res.status}`); e.status = res.status; throw e; }
+        const text = await res.text();
+        return text ? JSON.parse(text) : null;
+      } finally { clearTimeout(timer); }
+    }
+  };
+
+  const toRow = s => ({ id: s.id, game: GAME_ID, level: s.level, name: s.name, ms: s.ms, achieved_at: new Date(s.at).toISOString() });
+  const fromRow = r => ({ id: r.id, level: r.level, name: r.name, ms: r.ms, at: Date.parse(r.achieved_at), synced: true });
+  const retryable = st => !st || st === 401 || st === 403 || st === 408 || st === 429 || st >= 500;
+
+  let syncing = null, syncAgain = false;
+  function sync() {
+    if (!remote.on) return Promise.resolve();
+    if (syncing) { syncAgain = true; return syncing; }
+    syncing = (async () => {
+      try {
+        for (const s of scores.filter(x => !x.synced)) {
+          try {
+            await remote.req("scores?on_conflict=id", {
+              method: "POST",
+              headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
+              body: JSON.stringify([toRow(s)])
+            });
+            s.synced = true;
+          } catch (e) {
+            if (retryable(e.status)) throw e;
+            s.synced = true;
+          }
+        }
+        saveScores();
+        const game = encodeURIComponent(GAME_ID);
+        const lists = await Promise.all(LEVELS.map(lv => remote.req(
+          `scores?select=id,level,name,ms,achieved_at&game=eq.${game}&level=eq.${lv}&order=ms.asc,achieved_at.asc&limit=${TOP_N}`
+        )));
+        const byId = new Map(scores.map(s => [s.id, s]));
+        lists.flat().forEach(r => { if (r && r.id && LEVELS.includes(r.level) && !byId.has(r.id)) byId.set(r.id, fromRow(r)); });
+        scores = [...byId.values()];
+        saveScores();
+        if (!$("menu").hidden) renderBoard();
+      } catch {}
+    })().finally(() => {
+      syncing = null;
+      if (syncAgain) { syncAgain = false; sync(); }
+    });
+    return syncing;
+  }
+
+  function pickRound(lv) {
+    const pool = POOLS[lv].slice(), out = [], seen = new Set();
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    for (const p of pool) {
+      const key = p.op === "+" ? `${Math.min(p.a, p.b)}+${Math.max(p.a, p.b)}` : `${p.a}-${p.b}`;
+      if (seen.has(key)) continue;
+      seen.add(key); out.push(p);
+      if (out.length === PER_ROUND) break;
+    }
+    return out;
+  }
+
+  function show(id) {
+    ["menu", "play", "done"].forEach(s => { $(s).hidden = s !== id; });
+    window.scrollTo(0, 0);
+  }
+  function toMenu() { show("menu"); renderBoard(); sync(); }
+
+  const radios = [...document.querySelectorAll('input[name="level"]')];
+  function syncLevels() {
+    radios.forEach(r => {
+      r.checked = r.value === level;
+      r.closest(".lvl").classList.toggle("on", r.checked);
+    });
+  }
+  radios.forEach(r => {
+    r.addEventListener("change", () => {
+      level = r.value; store.set("mg1.level", level);
+      syncLevels(); renderBoard();
+    });
+    r.addEventListener("focus", () => {
+      let kbd = false; try { kbd = r.matches(":focus-visible"); } catch {}
+      if (kbd) r.closest(".lvl").classList.add("kbd");
+    });
+    r.addEventListener("blur", () => r.closest(".lvl").classList.remove("kbd"));
+  });
+
+  function renderBoard() {
+    const ol = $("board");
+    ol.textContent = "";
+    listFor(level).forEach((e, i) => {
+      const li = document.createElement("li");
+      if (e.id === highlightId) li.className = "new";
+      [["rk", i + 1], ["nm", e.name], ["tm", fmtTime(e.ms)], ["dt", fmtDate(e.at)]].forEach(([c, t]) => {
+        const s = document.createElement("span"); s.className = c; s.textContent = t; li.appendChild(s);
+      });
+      ol.appendChild(li);
+    });
+  }
+
+  const input = $("answer"), box = $("answerBox"), note = $("note"), clock = $("clock");
+  let round = [], idx = 0, t0 = 0, tick = 0, locked = false, elapsed = 0;
+
+  function start() {
+    highlightId = null;
+    round = pickRound(level); idx = 0; locked = false;
+    show("play");
+    buildBeads(); renderProblem(false); clearAnswer(); setNote("");
+    disarmQuit();
+    t0 = performance.now(); clock.textContent = "0:00";
+    clearInterval(tick);
+    tick = setInterval(() => { clock.textContent = fmtTime(performance.now() - t0); }, 250);
+    input.focus();
+  }
+
+  function buildBeads() {
+    const b = $("beads"); b.textContent = "";
+    for (let i = 0; i < PER_ROUND; i++) {
+      const s = document.createElement("span"); s.className = "bead"; b.appendChild(s);
+    }
+    paintBeads();
+  }
+  function paintBeads() {
+    [...$("beads").children].forEach((s, i) => {
+      s.classList.toggle("done", i < idx);
+      s.classList.toggle("now", i === idx);
+    });
+    $("beads").setAttribute("aria-label", `Problem ${Math.min(idx + 1, PER_ROUND)} of ${PER_ROUND}`);
+  }
+
+  function renderProblem(animate) {
+    const p = round[idx];
+    const tens = n => (n >= 10 ? String(Math.floor(n / 10)) : "");
+    $("aT").textContent = tens(p.a); $("aO").textContent = p.a % 10;
+    $("bT").textContent = tens(p.b); $("bO").textContent = p.b % 10;
+    $("op").textContent = p.op === "+" ? "+" : "−";
+    $("sumText").textContent = `${p.a} ${p.op === "+" ? "plus" : "minus"} ${p.b}`;
+    const nums = $("nums");
+    nums.classList.remove("enter");
+    if (animate) { void nums.offsetWidth; nums.classList.add("enter"); }
+  }
+
+  function paintAnswer() {
+    const v = input.value;
+    $("ansT").textContent = v.length === 2 ? v[0] : "";
+    $("ansO").textContent = v.length ? v[v.length - 1] : "";
+    box.classList.toggle("empty", !v.length);
+  }
+  function clearAnswer() { input.value = ""; paintAnswer(); box.classList.remove("right", "miss", "wrong"); }
+  function setNote(text, yes) { note.textContent = text; note.classList.toggle("yes", !!yes); }
+
+  input.addEventListener("input", () => {
+    if (locked) { input.value = String(round[idx - 1]?.answer ?? ""); paintAnswer(); return; }
+    const clean = input.value.replace(/\D/g, "").slice(0, 2);
+    if (clean !== input.value) input.value = clean;
+    box.classList.remove("miss");
+    if (note.textContent) setNote("");
+    paintAnswer();
+  });
+  input.addEventListener("focus", () => box.classList.add("focus"));
+  input.addEventListener("blur", () => box.classList.remove("focus"));
+  box.addEventListener("animationend", () => box.classList.remove("wrong"));
+  $("checkBtn").addEventListener("mousedown", e => e.preventDefault());
+
+  $("work").addEventListener("submit", e => {
+    e.preventDefault();
+    input.focus();
+    if (locked || !input.value) return;
+    const p = round[idx];
+    if (+input.value === p.answer) {
+      locked = true;
+      if (idx === PER_ROUND - 1) elapsed = performance.now() - t0;
+      box.classList.add("right");
+      setNote("Yes!", true);
+      idx++; paintBeads();
+      setTimeout(() => {
+        if (idx === PER_ROUND) return finish();
+        renderProblem(true); clearAnswer(); setNote(""); locked = false;
+      }, 600);
+    } else {
+      box.classList.remove("wrong"); void box.offsetWidth;
+      box.classList.add("wrong", "miss");
+      setNote("Not quite");
+      const snap = input.value;
+      setTimeout(() => { if (input.value === snap && !locked) { input.value = ""; paintAnswer(); } }, 460);
+    }
+  });
+
+  document.addEventListener("keydown", e => {
+    if ($("play").hidden || document.activeElement === input) return;
+    if (/^[0-9]$/.test(e.key) || e.key === "Enter") input.focus();
+  });
+
+  const quitBtn = $("quitBtn"), quitIcon = quitBtn.innerHTML;
+  let armTimer = 0;
+  function disarmQuit() {
+    clearTimeout(armTimer);
+    quitBtn.classList.remove("armed"); quitBtn.innerHTML = quitIcon;
+    quitBtn.setAttribute("aria-label", "Back to menu");
+  }
+  quitBtn.addEventListener("mousedown", e => e.preventDefault());
+  quitBtn.addEventListener("click", () => {
+    if (idx === 0 || quitBtn.classList.contains("armed")) { clearInterval(tick); disarmQuit(); toMenu(); return; }
+    quitBtn.classList.add("armed"); quitBtn.textContent = "Quit?";
+    quitBtn.setAttribute("aria-label", "Tap again to quit");
+    armTimer = setTimeout(disarmQuit, 2500);
+    input.focus();
+  });
+
+  function finish() {
+    clearInterval(tick); locked = false;
+    const list = listFor(level);
+    const qualifies = list.length < TOP_N || elapsed < list[TOP_N - 1].ms;
+    $("finalTime").textContent = fmtTime(elapsed);
+    $("saveForm").hidden = !qualifies;
+    $("doneActions").hidden = qualifies;
+    $("nameInput").value = store.get("mg1.name", "");
+    show("done");
+    if (qualifies) $("nameInput").focus(); else $("againBtn").focus();
+  }
+
+  $("saveForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const name = $("nameInput").value.trim().slice(0, 16);
+    if (!name) { $("nameInput").focus(); return; }
+    store.set("mg1.name", name);
+    const entry = { id: uuid(), level, name, ms: Math.max(1, Math.round(elapsed)), at: Date.now(), synced: false };
+    scores.push(entry); saveScores();
+    highlightId = entry.id;
+    toMenu();
+  });
+  $("skipBtn").addEventListener("click", toMenu);
+  $("menuBtn").addEventListener("click", toMenu);
+  $("againBtn").addEventListener("click", start);
+  $("startBtn").addEventListener("click", start);
+
+  window.addEventListener("online", sync);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !$("menu").hidden) sync(); });
+
+  syncLevels(); renderBoard(); sync();
+})();
+</script>
+</body>
+</html>
