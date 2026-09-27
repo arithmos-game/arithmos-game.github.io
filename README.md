@@ -1,3 +1,3 @@
-# Arithmos
+# Arithmos: Levels A-D
 
-A game for elementary school kids
+Basic math games for a ~6 year old
