@@ -1,6 +1,6 @@
 create table if not exists public.scores (
   id          uuid primary key,
-  game        text not null default 'math-game-1',
+  game        text not null default 'arithmos',
   level       text not null check (level in ('A', 'B', 'C', 'D')),
   name        text not null check (char_length(name) between 1 and 16),
   ms          integer not null check (ms between 1000 and 3600000),
