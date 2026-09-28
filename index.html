@@ -58,6 +58,7 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
 .icon-btn svg{width:16px; height:16px}
 .icon-btn.armed{padding:0 12px; color:var(--clay); border-color:var(--clay)}
 .link{font-weight:800; color:var(--muted); text-decoration:underline; text-underline-offset:3px; min-height:40px; padding:0 8px}
+.link.armed{color:var(--clay)}
 
 .screen{flex:1; width:100%; max-width:25rem; margin:0 auto; display:flex; flex-direction:column}
 
@@ -93,6 +94,7 @@ h1{
 .nm{font-weight:700; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .tm{font-weight:800; font-variant-numeric:tabular-nums}
 .dt{color:var(--muted); font-weight:700; font-size:.83rem; text-align:right; white-space:nowrap}
+.acct{margin:28px 0 0; text-align:center}
 
 #play{padding-bottom:5vh}
 .bar{display:grid; grid-template-columns:1fr auto 1fr; align-items:center; padding:14px 0}
@@ -167,18 +169,24 @@ h1{
 .note.yes{color:var(--units)}
 .check{width:100%; font-size:1.1rem; padding:14px}
 
-#done .stage{padding-bottom:8vh}
-#done .mat{padding:28px 24px 22px; text-align:center}
-#done h2{font-family:"Fraunces",Baskerville,Georgia,serif; font-weight:650; font-size:1.5rem; line-height:1.2; margin:0}
+#done .stage, #account .stage{padding-bottom:8vh}
+#done .mat, #account .mat{padding:28px 24px 22px; text-align:center}
+#done h2, #account h2{font-family:"Fraunces",Baskerville,Georgia,serif; font-weight:650; font-size:1.5rem; line-height:1.2; margin:0}
 .final{font-family:"Fraunces",Baskerville,Georgia,serif; font-weight:650; font-size:3.6rem; line-height:1.1; margin:6px 0 18px; font-variant-numeric:tabular-nums}
 .save{display:flex; flex-direction:column; gap:10px; width:100%}
 .save label{font-weight:800; color:var(--units)}
-.save input{
+.save input, .auth input{
   font:inherit; font-weight:700; font-size:1.1rem; text-align:center; width:100%;
   background:var(--surface-2); border:1.5px solid var(--line); border-radius:12px; padding:12px 14px; color:var(--ink);
 }
-.save input:focus{outline:none; border-color:var(--ochre); box-shadow:var(--ring)}
-.save input::placeholder{color:var(--muted)}
+.save input:focus, .auth input:focus{outline:none; border-color:var(--ochre); box-shadow:var(--ring)}
+.save input::placeholder, .auth input::placeholder{color:var(--muted)}
+.auth{gap:10px}
+.auth > *{width:100%}
+.auth .email{margin:2px 0 6px; color:var(--ink-2); font-weight:700; overflow-wrap:anywhere}
+.auth .btn.armed{color:var(--clay); border-color:var(--clay)}
+.auth .note{margin:0}
+.auth .btn:disabled{opacity:.6}
 .row{display:flex; gap:10px; width:100%}
 .row .btn{flex:1}
 
@@ -210,6 +218,8 @@ h1{
     <h2 id="boardTitle">High scores</h2>
     <ol id="board"></ol>
   </section>
+
+  <p class="acct" id="acct" hidden><button class="link" type="button" id="acctBtn">Account</button></p>
 </main>
 
 <main id="play" class="screen" hidden>
@@ -268,11 +278,34 @@ h1{
   </div>
 </main>
 
+<main id="account" class="screen" hidden>
+  <div class="stage">
+    <form class="mat auth" id="authForm" novalidate>
+      <h2 id="authTitle">Sign in</h2>
+      <label class="sr" for="email">Email</label>
+      <input id="email" type="email" placeholder="Email" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <label class="sr" for="password">Password</label>
+      <input id="password" type="password" placeholder="Password" autocomplete="current-password" enterkeyhint="go">
+      <p class="note" id="authNote" aria-live="polite"></p>
+      <button class="btn" type="submit" id="authSubmit">Sign in</button>
+      <button class="link" type="button" id="authSwitch">Create account</button>
+      <button class="link" type="button" id="authBack">Back</button>
+    </form>
+    <div class="mat auth" id="acctInfo" hidden>
+      <h2>Account</h2>
+      <p class="email" id="acctEmail"></p>
+      <button class="btn btn--ghost" type="button" id="signOutBtn">Sign out</button>
+      <button class="link" type="button" id="acctBack">Back</button>
+    </div>
+  </div>
+</main>
+
 <script>
 (() => {
   "use strict";
 
   // Supabase sync: paste your project URL and publishable (or legacy anon) key. Leave blank to keep scores on this device only.
+  // Signed-in accounts (one per family) sync a private board; signed out, scores stay on this device.
   const SUPABASE_URL = "https://eeugvngdjvvczpprzgbp.supabase.co";
   const SUPABASE_KEY = "sb_publishable_gwa1h5ENVpOzKW1Zgll__A_iwPdOmOj";
   const GAME_ID = "arithmos";
@@ -301,11 +334,8 @@ h1{
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
   };
 
-  let scores = store.get("arithmos.scores", []);
-  if (!Array.isArray(scores)) scores = [];
-  scores = scores.filter(s => s && s.id && LEVELS.includes(s.level) && s.ms > 0);
   let level = LEVELS.includes(store.get("arithmos.level")) ? store.get("arithmos.level") : "A";
-  let highlightId = null;
+  let scores = [], highlightId = null;
 
   const $ = id => document.getElementById(id);
   const byTime = (x, y) => x.ms - y.ms || x.at - y.at;
@@ -327,30 +357,87 @@ h1{
   };
   const listFor = lv => scores.filter(s => s.level === lv).sort(byTime).slice(0, TOP_N);
 
-  function saveScores() {
-    const keep = [];
-    LEVELS.forEach(lv => {
-      const all = scores.filter(s => s.level === lv).sort(byTime);
-      all.forEach((s, i) => { if (i < TOP_N || !s.synced) keep.push(s); });
-    });
-    scores = keep;
-    store.set("arithmos.scores", scores);
-  }
-
   const remote = {
     on: !!(SUPABASE_URL && SUPABASE_KEY),
-    async req(path, opts = {}) {
+    async api(path, opts = {}) {
       const headers = { apikey: SUPABASE_KEY, "Content-Type": "application/json", ...opts.headers };
-      if (SUPABASE_KEY.startsWith("eyJ")) headers.Authorization = `Bearer ${SUPABASE_KEY}`;
       const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 8000);
       try {
-        const res = await fetch(`${SUPABASE_URL.replace(/\/+$/, "")}/rest/v1/${path}`, { ...opts, headers, signal: ctrl.signal });
-        if (!res.ok) { const e = new Error(`Supabase ${res.status}`); e.status = res.status; throw e; }
+        const res = await fetch(`${SUPABASE_URL.replace(/\/+$/, "")}${path}`, { ...opts, headers, signal: ctrl.signal });
         const text = await res.text();
-        return text ? JSON.parse(text) : null;
+        let body = null;
+        try { body = text ? JSON.parse(text) : null; } catch {}
+        if (!res.ok) {
+          const e = new Error(body?.msg || body?.error_description || body?.message || `Supabase ${res.status}`);
+          e.status = res.status; throw e;
+        }
+        return body;
       } finally { clearTimeout(timer); }
+    },
+    async req(path, opts = {}, retry = true) {
+      const token = await auth.token();
+      try {
+        return await this.api(`/rest/v1/${path}`, { ...opts, headers: { Authorization: `Bearer ${token}`, ...opts.headers } });
+      } catch (e) {
+        if (e.status !== 401 || !retry) throw e;
+        await auth.token(true);
+        return this.req(path, opts, false);
+      }
     }
   };
+
+  const SESSION_KEY = "arithmos.session";
+  const auth = {
+    session: null, refreshing: null,
+    uid() { return this.session?.user_id || null; },
+    set(r) {
+      this.session = r?.access_token && r.refresh_token && r.user?.id ? {
+        access_token: r.access_token, refresh_token: r.refresh_token,
+        expires_at: r.expires_at || Math.floor(Date.now() / 1000) + (r.expires_in || 3600),
+        user_id: r.user.id, email: r.user.email || ""
+      } : null;
+      store.set(SESSION_KEY, this.session);
+    },
+    // Returns a fresh access token, refreshing it when it is about to expire.
+    async token(force) {
+      const saved = store.get(SESSION_KEY, null);
+      if (saved?.user_id && saved.user_id === this.uid()) this.session = saved; // another tab may have refreshed already
+      const s = this.session;
+      if (!s) throw new Error("Signed out");
+      if (!force && s.expires_at - 60 > Date.now() / 1000) return s.access_token;
+      if (!this.refreshing) {
+        this.refreshing = remote.api("/auth/v1/token?grant_type=refresh_token", {
+          method: "POST", body: JSON.stringify({ refresh_token: s.refresh_token })
+        }).then(
+          r => { if (this.session?.refresh_token === s.refresh_token) this.set(r); },
+          e => { if ([400, 401, 403].includes(e.status) && this.session?.refresh_token === s.refresh_token) signOut(false); throw e; }
+        ).finally(() => { this.refreshing = null; });
+      }
+      await this.refreshing;
+      if (this.uid() !== s.user_id) throw new Error("Account changed");
+      return this.session.access_token;
+    }
+  };
+  const saved = store.get(SESSION_KEY, null);
+  if (remote.on && saved?.access_token && saved.refresh_token && saved.user_id) auth.session = saved;
+
+  // Each account keeps its own copy on the device; "arithmos.scores" is the signed-out board.
+  const scoresKey = () => auth.uid() ? `arithmos.scores.${auth.uid()}` : "arithmos.scores";
+  function loadScores() {
+    const v = store.get(scoresKey(), []);
+    // Signed-out scores never sync, so synced ones there are leftovers from the old public board.
+    scores = (Array.isArray(v) ? v : []).filter(s => s && s.id && LEVELS.includes(s.level) && s.ms > 0 && (auth.uid() || !s.synced));
+  }
+
+  function saveScores() {
+    const keep = [], online = !!auth.uid();
+    LEVELS.forEach(lv => {
+      const all = scores.filter(s => s.level === lv).sort(byTime);
+      all.forEach((s, i) => { if (i < TOP_N || (online && !s.synced)) keep.push(s); });
+    });
+    scores = keep;
+    store.set(scoresKey(), scores);
+  }
 
   const toRow = s => ({ id: s.id, game: GAME_ID, level: s.level, name: s.name, ms: s.ms, achieved_at: new Date(s.at).toISOString() });
   const fromRow = r => ({ id: r.id, level: r.level, name: r.name, ms: r.ms, at: Date.parse(r.achieved_at), synced: true });
@@ -358,11 +445,15 @@ h1{
 
   let syncing = null, syncAgain = false;
   function sync() {
-    if (!remote.on) return Promise.resolve();
+    if (!remote.on || !auth.uid()) return Promise.resolve();
     if (syncing) { syncAgain = true; return syncing; }
+    const uid = auth.uid();
+    // Stop as soon as the account changes, so one family's scores never land in another's board.
+    const same = () => auth.uid() === uid;
     syncing = (async () => {
       try {
         for (const s of scores.filter(x => !x.synced)) {
+          if (!same()) return;
           try {
             await remote.req("scores?on_conflict=id", {
               method: "POST",
@@ -375,11 +466,13 @@ h1{
             s.synced = true;
           }
         }
+        if (!same()) return;
         saveScores();
         const game = encodeURIComponent(GAME_ID);
         const lists = await Promise.all(LEVELS.map(lv => remote.req(
           `scores?select=id,level,name,ms,achieved_at&game=eq.${game}&level=eq.${lv}&order=ms.asc,achieved_at.asc&limit=${TOP_N}`
         )));
+        if (!same()) return;
         const byId = new Map(scores.map(s => [s.id, s]));
         lists.flat().forEach(r => { if (r && r.id && LEVELS.includes(r.level) && !byId.has(r.id)) byId.set(r.id, fromRow(r)); });
         scores = [...byId.values()];
@@ -391,6 +484,21 @@ h1{
       if (syncAgain) { syncAgain = false; sync(); }
     });
     return syncing;
+  }
+
+  // Switches the board to whichever account is now signed in (or to this device's board).
+  function useAccount() {
+    loadScores(); highlightId = null; renderAccount();
+    if (!$("menu").hidden) renderBoard();
+  }
+  // revoke: also end the session on the server (a manual sign-out rather than an expired one).
+  function signOut(revoke) {
+    const s = auth.session;
+    if (!s) return;
+    if (revoke) remote.api("/auth/v1/logout?scope=local", { method: "POST", headers: { Authorization: `Bearer ${s.access_token}` } }).catch(() => {});
+    store.set(scoresKey(), scores.filter(x => !x.synced)); // keep only what still needs uploading
+    auth.set(null);
+    useAccount();
   }
 
   function pickRound(lv) {
@@ -409,15 +517,15 @@ h1{
   }
 
   function show(id) {
-    ["menu", "play", "done"].forEach(s => { $(s).hidden = s !== id; });
+    ["menu", "play", "done", "account"].forEach(s => { $(s).hidden = s !== id; });
     window.scrollTo(0, 0);
   }
-  // A game owns one history entry, so the browser/phone back button stays in the app (see popstate below).
-  const inGameEntry = () => history.state?.arithmos === "game";
+  // A game or the account screen owns one history entry, so the browser/phone back button stays in the app (see popstate below).
+  const inAppEntry = () => !!history.state?.arithmos;
   let leavingEntry = false;
   function toMenu() {
     show("menu"); renderBoard(); sync();
-    if (inGameEntry()) { leavingEntry = true; history.back(); }
+    if (inAppEntry()) { leavingEntry = true; history.back(); }
   }
 
   const radios = [...document.querySelectorAll('input[name="level"]')];
@@ -458,7 +566,7 @@ h1{
   function start() {
     highlightId = null;
     round = pickRound(level); idx = 0; locked = false;
-    if (!inGameEntry()) history.pushState({ arithmos: "game" }, "");
+    if (!inAppEntry()) history.pushState({ arithmos: "game" }, "");
     show("play");
     buildBeads(); renderProblem(false); clearAnswer(); setNote("");
     disarmQuit();
@@ -573,7 +681,7 @@ h1{
     if (!$("play").hidden) {
       // Back already popped the game entry; put it back unless this press really quits.
       if (!tryQuit()) history.pushState({ arithmos: "game" }, "");
-    } else if (!$("done").hidden) toMenu();
+    } else if (!$("done").hidden || !$("account").hidden) toMenu();
   });
 
   function finish() {
@@ -603,10 +711,80 @@ h1{
   $("againBtn").addEventListener("click", start);
   $("startBtn").addEventListener("click", start);
 
+  const signOutBtn = $("signOutBtn");
+  let signOutTimer = 0;
+  function renderAccount() {
+    $("acct").hidden = !remote.on;
+    disarmSignOut();
+  }
+  function disarmSignOut() {
+    clearTimeout(signOutTimer);
+    signOutBtn.classList.remove("armed"); signOutBtn.textContent = "Sign out";
+  }
+  signOutBtn.addEventListener("click", () => {
+    if (!signOutBtn.classList.contains("armed")) {
+      signOutBtn.classList.add("armed"); signOutBtn.textContent = "Tap again to sign out";
+      signOutTimer = setTimeout(disarmSignOut, 2500);
+      return;
+    }
+    signOut(true); toMenu();
+  });
+  $("acctBtn").addEventListener("click", openAccount);
+  $("acctBack").addEventListener("click", toMenu);
+
+  let authMode = "in", authBusy = false;
+  function setAuthNote(text, yes) { $("authNote").textContent = text; $("authNote").classList.toggle("yes", !!yes); }
+  function paintAuth() {
+    const up = authMode === "up";
+    $("authTitle").textContent = $("authSubmit").textContent = up ? "Create account" : "Sign in";
+    $("authSwitch").textContent = up ? "Sign in" : "Create account";
+    $("password").setAttribute("autocomplete", up ? "new-password" : "current-password");
+  }
+  function openAccount() {
+    const signedIn = !!auth.uid();
+    $("authForm").hidden = signedIn; $("acctInfo").hidden = !signedIn;
+    if (signedIn) { $("acctEmail").textContent = auth.session.email; disarmSignOut(); }
+    else {
+      authMode = "in"; paintAuth(); setAuthNote("");
+      $("email").value = store.get("arithmos.email", ""); $("password").value = "";
+    }
+    if (!inAppEntry()) history.pushState({ arithmos: "account" }, "");
+    show("account");
+    if (!signedIn) ($("email").value ? $("password") : $("email")).focus();
+  }
+  $("authSwitch").addEventListener("click", () => {
+    authMode = authMode === "up" ? "in" : "up"; paintAuth(); setAuthNote("");
+  });
+  $("authBack").addEventListener("click", toMenu);
+  $("authForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    if (authBusy) return;
+    const email = $("email").value.trim(), password = $("password").value;
+    if (!email) return $("email").focus();
+    if (!password) return $("password").focus();
+    authBusy = true; $("authSubmit").disabled = true; setAuthNote("");
+    try {
+      const up = authMode === "up";
+      const r = await remote.api(up ? "/auth/v1/signup" : "/auth/v1/token?grant_type=password", {
+        method: "POST", body: JSON.stringify({ email, password })
+      });
+      store.set("arithmos.email", email);
+      if (r?.access_token) {
+        auth.set(r); useAccount();
+        if (!$("account").hidden) toMenu(); else sync();
+      } else {
+        authMode = "in"; paintAuth(); $("password").value = "";
+        setAuthNote("Check your email to confirm, then sign in.", true);
+      }
+    } catch (err) {
+      setAuthNote(err.status ? err.message : "Couldn't connect.");
+    } finally { authBusy = false; $("authSubmit").disabled = false; }
+  });
+
   window.addEventListener("online", sync);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !$("menu").hidden) sync(); });
 
-  syncLevels(); renderBoard(); sync();
+  loadScores(); renderAccount(); syncLevels(); renderBoard(); sync();
 })();
 </script>
 </body>
