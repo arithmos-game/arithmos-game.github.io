@@ -517,6 +517,9 @@ h1{
   }
 
   function show(id) {
+    // Drop focus so the phone keyboard closes. Firefox on Android otherwise keeps the
+    // name field's text keyboard open and reuses it for the numeric answer box.
+    document.activeElement?.blur();
     ["menu", "play", "done", "account"].forEach(s => { $(s).hidden = s !== id; });
     window.scrollTo(0, 0);
   }
