@@ -516,10 +516,10 @@ h1{
     return out;
   }
 
+  // Screens that type move focus straight into their field, with no blur first. Firefox on Android
+  // can handle a blur (or a button taking focus) that lands right before a field's focus out of
+  // order, and then keeps the old keyboard: the name field's letters instead of the answer's numbers.
   function show(id) {
-    // Drop focus so the phone keyboard closes. Firefox on Android otherwise keeps the
-    // name field's text keyboard open and reuses it for the numeric answer box.
-    document.activeElement?.blur();
     ["menu", "play", "done", "account"].forEach(s => { $(s).hidden = s !== id; });
     window.scrollTo(0, 0);
   }
@@ -527,6 +527,7 @@ h1{
   const inAppEntry = () => !!history.state?.arithmos;
   let leavingEntry = false;
   function toMenu() {
+    document.activeElement?.blur(); // nothing to type on the menu, so close the phone keyboard
     show("menu"); renderBoard(); sync();
     if (inAppEntry()) { leavingEntry = true; history.back(); }
   }
@@ -694,7 +695,7 @@ h1{
     $("finalTime").textContent = fmtTime(elapsed);
     $("saveForm").hidden = !qualifies;
     $("doneActions").hidden = qualifies;
-    $("nameInput").value = store.get("arithmos.name", "");
+    $("nameInput").value = "";
     show("done");
     if (qualifies) $("nameInput").focus(); else $("againBtn").focus();
   }
@@ -703,7 +704,6 @@ h1{
     e.preventDefault();
     const name = $("nameInput").value.trim().slice(0, 16);
     if (!name) { $("nameInput").focus(); return; }
-    store.set("arithmos.name", name);
     const entry = { id: uuid(), level, name, ms: Math.max(1, Math.round(elapsed)), at: Date.now(), synced: false };
     scores.push(entry); saveScores();
     highlightId = entry.id;
@@ -713,6 +713,8 @@ h1{
   $("menuBtn").addEventListener("click", toMenu);
   $("againBtn").addEventListener("click", start);
   $("startBtn").addEventListener("click", start);
+  // These lead to a screen that focuses a field, so a tap mustn't focus the button first (see show).
+  ["againBtn", "startBtn", "acctBtn"].forEach(id => $(id).addEventListener("mousedown", e => e.preventDefault()));
 
   const signOutBtn = $("signOutBtn");
   let signOutTimer = 0;
